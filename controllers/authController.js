@@ -18,4 +18,29 @@ export const register = async (req, res) => {
   }
 };
 
+export const login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ message: "Invalid credentials" });
+    const match = await user.comparePassword(password);
+    if (!match) return res.status(401).json({ message: "Invalid credentials" });
+    const token = signToken(user);
+    res.json({ token, user: { id: user._id, name: user.name, email: user.email, role: user.role } });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+export const getAllUsers = async (req, res) => {
+  try {
+    // Optional: exclude the currently logged-in user
+    const users = await User.find({ _id: { $ne: req.user.id } }).select("name email role");
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
+export const me = (req, res) => {
+  res.json(req.user);
+};
