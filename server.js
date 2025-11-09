@@ -36,5 +36,5 @@ app.use("/api/chat", chatRoutes);
 // ⚡ Setup Socket.IO
 setupSocket(server);  // 👈 attach socket.io to the server
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT ;
 server.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));

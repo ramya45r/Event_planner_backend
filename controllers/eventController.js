@@ -12,63 +12,69 @@ import Notification from "../models/Notification.js";
  */
 export const createEvent = async (req, res) => {
   try {
-    console.log(req.body,'hh');
-    
-    const { title, description, category, startTime, endTime, location } = req.body;
-    console.log(req.body,'kkk');
+    console.log(req.body, "hh");
+
+    const { title, description, category, startTime, endTime, location } =
+      req.body;
+    console.log(req.body, "kkk");
     const attachments = [];
-    
+
     if (req.files && req.files.length) {
       for (const f of req.files) {
-        const resCloud = await cloudinary.uploader.upload(f.path, { folder: "edentu/events" });
-        console.log(resCloud,'resCloud');
-        
-        attachments.push({ url: resCloud.secure_url, public_id: resCloud.public_id });
-        try { fs.unlinkSync(f.path); } catch (e) {}
+        const resCloud = await cloudinary.uploader.upload(f.path, {
+          folder: "edentu/events",
+        });
+        console.log(resCloud, "resCloud");
+
+        attachments.push({
+          url: resCloud.secure_url,
+          public_id: resCloud.public_id,
+        });
+        try {
+          fs.unlinkSync(f.path);
+        } catch (e) {}
       }
     }
-    console.log('kkkkaaa');
-    
-   const event = await Event.create({
-  title,
-  description,
-  category,
-  startTime,
-  endTime,
-  organizer: req.user._id,
-  participants: [],
-  location,
-  attachments
-});
+    console.log("kkkkaaa");
 
-console.log("Event created:", event._id);
+    const event = await Event.create({
+      title,
+      description,
+      category,
+      startTime,
+      endTime,
+      organizer: req.user._id,
+      participants: [],
+      location,
+      attachments,
+    });
 
-try {
-  await queueEventReminder(event._id, new Date(startTime));
-  console.log("✅ Reminder scheduled from controller");
-} catch (err) {
-  console.error("Error in queueEventReminder:", err.message);
-}
+    console.log("Event created:", event._id);
 
-try {
-  await Notification.create({
-    user: req.user._id,
-    type: "event_created",
-    message: `Event "${title}" created.`,
-    data: { eventId: event._id }
-  });
-  console.log("Notification created");
-} catch (err) {
-  console.error("Error creating notification:", err.message);
-}
+    try {
+      await queueEventReminder(event._id, new Date(startTime));
+      console.log("✅ Reminder scheduled from controller");
+    } catch (err) {
+      console.error("Error in queueEventReminder:", err.message);
+    }
 
-res.status(201).json({
-  success: true,
-  message: "Event created successfully",
-  event
-});
+    try {
+      await Notification.create({
+        user: req.user._id,
+        type: "event_created",
+        message: `Event "${title}" created.`,
+        data: { eventId: event._id },
+      });
+      console.log("Notification created");
+    } catch (err) {
+      console.error("Error creating notification:", err.message);
+    }
 
-
+    res.status(201).json({
+      success: true,
+      message: "Event created successfully",
+      event,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: err.message });
@@ -88,7 +94,11 @@ export const listEvents = async (req, res) => {
     if (filter === "completed") query.endTime = { $lt: now };
 
     const total = await Event.countDocuments(query);
-    const events = await Event.find(query).sort({ startTime: 1 }).skip(skip).limit(Number(limit)).populate("organizer", "name email");
+    const events = await Event.find(query)
+      .sort({ startTime: 1 })
+      .skip(skip)
+      .limit(Number(limit))
+      .populate("organizer", "name email");
     res.json({ total, page: Number(page), perPage: Number(limit), events });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -97,10 +107,15 @@ export const listEvents = async (req, res) => {
 
 export const getEvent = async (req, res) => {
   try {
-    const e = await Event.findById(req.params.id).populate("organizer participants.user", "name email role");
+    const e = await Event.findById(req.params.id).populate(
+      "organizer participants.user",
+      "name email role"
+    );
     if (!e) return res.status(404).json({ message: "Not found" });
     res.json(e);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
 export const updateEvent = async (req, res) => {
@@ -109,21 +124,40 @@ export const updateEvent = async (req, res) => {
     if (!event) return res.status(404).json({ message: "Not found" });
 
     // Only organizer or admin can update (middleware already checks role; additional check: organizer owner)
-    if (req.user.role !== "Admin" && String(event.organizer) !== String(req.user._id)) {
+    if (
+      req.user.role !== "Admin" &&
+      String(event.organizer) !== String(req.user._id)
+    ) {
       return res.status(403).json({ message: "Forbidden" });
     }
 
     // cloud upload new files if any
     if (req.files && req.files.length) {
       for (const f of req.files) {
-        const resCloud = await cloudinary.uploader.upload(f.path, { folder: "edentu/events" });
-        event.attachments.push({ url: resCloud.secure_url, public_id: resCloud.public_id });
-        try { fs.unlinkSync(f.path); } catch (e) {}
+        const resCloud = await cloudinary.uploader.upload(f.path, {
+          folder: "edentu/events",
+        });
+        event.attachments.push({
+          url: resCloud.secure_url,
+          public_id: resCloud.public_id,
+        });
+        try {
+          fs.unlinkSync(f.path);
+        } catch (e) {}
       }
     }
 
-    const fields = ["title", "description", "category", "startTime", "endTime", "location"];
-    fields.forEach(field => { if (req.body[field] !== undefined) event[field] = req.body[field]; });
+    const fields = [
+      "title",
+      "description",
+      "category",
+      "startTime",
+      "endTime",
+      "location",
+    ];
+    fields.forEach((field) => {
+      if (req.body[field] !== undefined) event[field] = req.body[field];
+    });
 
     await event.save();
 
@@ -131,39 +165,75 @@ export const updateEvent = async (req, res) => {
     await queueEventReminder(event._id, new Date(event.startTime));
 
     res.json(event);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
 
 export const deleteEvent = async (req, res) => {
   try {
     const ev = await Event.findById(req.params.id);
     if (!ev) return res.status(404).json({ message: "Not found" });
-    await ev.remove();
+
+    await ev.deleteOne(); // <-- use deleteOne instead of remove
     res.json({ message: "Deleted" });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
 };
+
 
 export const rsvp = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { status } = req.body; // accepted/declined
-    const event = await Event.findById(id);
-    if (!event) return res.status(404).json({ message: "Not found" });
+    const { id } = req.params; // Event ID
+    const { status, userId } = req.body; // "accepted" or "declined"
 
-    const idx = event.participants.findIndex(p => String(p.user) === String(req.user._id));
-    if (idx === -1) {
-      event.participants.push({ user: req.user._id, status });
-    } else {
-      event.participants[idx].status = status;
-    }
+    const event = await Event.findById(id);
+    if (!event) return res.status(404).json({ message: "Event not found" });
+
+    // ✅ Ensure arrays exist
+    if (!event.participants) event.participants = [];
+    if (!event.invited) event.invited = [];
+
+    const participantId = userId || req.user._id;
+console.log(participantId,'participantId');
+
+    // Find participant index (if exists)
+    const existingIndex = event.participants.find(
+      (p) => String(p._id) === String(participantId)
+    );
+    console.log(existingIndex, "existing index1");
+
+    if (status === "accepted") {
+      existingIndex.status = "accepted";
+      await event.save();
+    } else if (status === "declined") {
+   event.participants = event.participants.find(
+  (p) => String(p._id) !== String(participantId)
+);
+console.log(event.participants,'kk');
+
+
+      
     await event.save();
 
-    // create in-app notification
-    await Notification.create({ user: event.organizer, type: "rsvp", message: `${req.user.name} ${status} your event "${event.title}"`, data: { eventId: id } });
+      console.log("❌ Participant declined:", participantId);
+    }
 
-    res.json({ ok: true });
-  } catch (err) { res.status(500).json({ message: err.message }); }
+    // Save the event
+    await event.save();
+
+    res.json({
+      success: true,
+      participants: event.participants,
+      invited: event.invited,
+    });
+  } catch (err) {
+    console.error("RSVP error:", err);
+    res.status(500).json({ message: err.message });
+  }
 };
+
 export const inviteParticipants = async (req, res) => {
   try {
     const { id } = req.params; // Event ID
@@ -182,7 +252,9 @@ export const inviteParticipants = async (req, res) => {
     );
 
     if (newParticipants.length === 0) {
-      return res.status(400).json({ message: "All selected users are already invited" });
+      return res
+        .status(400)
+        .json({ message: "All selected users are already invited" });
     }
 
     // Push new participants
@@ -190,7 +262,10 @@ export const inviteParticipants = async (req, res) => {
     await event.save();
 
     // Optionally populate for frontend convenience
-    const updatedEvent = await Event.findById(id).populate("participants", "name email");
+    const updatedEvent = await Event.findById(id).populate(
+      "participants",
+      "name email"
+    );
 
     res.json({
       message: "Participants invited successfully",
@@ -198,6 +273,8 @@ export const inviteParticipants = async (req, res) => {
     });
   } catch (err) {
     console.error("Invite error:", err);
-    res.status(500).json({ message: "Server error while inviting participants" });
+    res
+      .status(500)
+      .json({ message: "Server error while inviting participants" });
   }
 };
